@@ -31,10 +31,22 @@ void setup()
   turnSensorSetup();
   delay(500);
   turnSensorReset();
-  printDisplay("Print B", "to Fight!");
+  printDisplay("Print B", "to +135!");
   while (buttonMonitor() != 'B');
   wait();
   lcd.clear();
+  dir(135);
+  while (buttonMonitor() != 'B');
+  ledGreen(1);
+  printDisplay("Print B", "to -135!");
+  while (buttonMonitor() != 'B');
+  wait();
+  lcd.clear();
+  dir(-135);
+  while (buttonMonitor() != 'B');
+  ledGreen(1);
+  printDisplay("Print B", "to Fight!");
+  while (buttonMonitor() != 'B');
 }
 
 void loop()
@@ -56,17 +68,17 @@ void wait() {
 void dir(int rotation) {
   int32_t verso;
   if ( rotation == NULL) {
-    turnSensorUpdate();
-    verso = (int32_t)turnAngle;
+    verso = (int32_t)90*turnAngle1;
   }
   else {
-    verso = (int32_t)rotation * 14680064 / 17578125;
+    ledGreen(0);
+    verso = (int32_t)rotation * turnAngle1;
   }
   int32_t turnSpeed = 0, a, b;
   a = ((verso >> 16 ) * 360) >> 16;
   b = (((int32_t)turnAngle >> 16) * 360) >> 16;
   printDisplay(0, 0, a );
-  printDisplay(4, 0, b >> 16);
+  printDisplay(4, 0, b );
   while (a != b) {
     turnSensorUpdate();
     turnSpeed = -verso / (turnAngle1 / 56) - turnRate / 20;

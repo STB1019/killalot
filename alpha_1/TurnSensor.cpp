@@ -79,8 +79,8 @@ void turnSensorSetup()
 
   // Display the angle (in degrees from -180 to 180) until the
   // user presses A.
-  lcd.clear();
   turnSensorReset();
+  lcd.clear();
 }
 
 // This should be called to set the starting point for measuring

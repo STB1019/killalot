@@ -7,10 +7,6 @@
 #define GYRO_NUM 14680064
 #define GYRO_DEN 17578125
 
-#define NUM_SENSORS 5
-uint16_t lineSensorValues[NUM_SENSORS];
-int dirs[] = { -45, 180, 45}; //inverto direzione
-
 Zumo32U4LCD lcd;
 Zumo32U4Buzzer buzzer;
 Zumo32U4ButtonA buttonA;
@@ -22,21 +18,56 @@ LSM303 compass;
 L3G gyro;
 Zumo32U4Motors motors;
 Zumo32U4Encoders encoders;
+int story_rotation=0;
 void dir(int);
 void mot(int32_t, int32_t);
 void mot(int32_t);
 void printDisplay(int, int, String);
 void printDisplay(String, String);
-void findWhite();
 void setup()
 {
-  printDisplay("Press A", "to Cal!");
+  Serial.begin(9600);
+  printDisplay("Print A", "to Cal!");
   while (buttonMonitor() != 'A');
   turnSensorSetup();
   delay(500);
   turnSensorReset();
-  lineSensors.initFiveSensors();
-  printDisplay("Print B", "to Run!");
+  printDisplay("Print B", "to +135!");
+  while (buttonMonitor() != 'B');
+  wait();
+  lcd.clear();
+  dir(135);
+  while (buttonMonitor() != 'B');
+  ledGreen(1);
+  printDisplay("Print B", "to -135!");
+  while (buttonMonitor() != 'B');
+  wait();
+  lcd.clear();
+  dir(-135);
+  while (buttonMonitor() != 'B');
+  ledGreen(1);
+  printDisplay("Print B", "to Fight!");
+  while (buttonMonitor() != 'B');
+  wait();
+  lcd.clear();
+  dir(90);
+  while (buttonMonitor() != 'B');
+  ledGreen(1);
+  printDisplay("Print B", "to Fight!");
+  while (buttonMonitor() != 'B');
+  wait();
+  lcd.clear();
+  dir(90);
+  while (buttonMonitor() != 'B');
+  ledGreen(1);
+  printDisplay("Print B", "to Fight!");
+  while (buttonMonitor() != 'B');
+  wait();
+  lcd.clear();
+  dir(-135);
+  while (buttonMonitor() != 'B');
+  ledGreen(1);
+  printDisplay("Print B", "to Fight!");
   while (buttonMonitor() != 'B');
 }
 
@@ -46,9 +77,8 @@ void loop()
   // the robot has turned, and turnRate, the estimation of how
   // fast it is turning.
 
-  dir(45);
-  //mot(50);
-  //findWhite();
+  dir(NULL);
+
 }
 void wait() {
   lcd.clear();
@@ -58,15 +88,21 @@ void wait() {
   }
 }
 void dir(int rotation) {
-  int32_t verso;
+  int64_t verso;
+  int teta = (((int32_t)turnAngle >> 16) * 360 >> 16);
+  int32_t turnSpeed = 0;
+  int dteta = 0;
   char buffer[80];
   if ( rotation == NULL) {
     turnSensorUpdate();
-    verso = (int32_t)turnAngle;
+    verso = (int64_t)360;
   }
   else {
-    sprintf(buffer, "%4d rotation raw \n", rotation);
+    ledGreen(0);
+    sprintf(buffer, "%4d rotation + %4d=%4d\n", rotation, teta, rotation + teta);
     Serial.print(buffer);
+    rotation += story_rotation; // TODO
+    story_rotation=rotation;
     if (rotation > 180) {
       rotation = rotation - 360;
       sprintf(buffer, "%4d rotation over 180 \n", rotation);
@@ -76,23 +112,22 @@ void dir(int rotation) {
       sprintf(buffer, "%4d rotation over -180 \n", rotation);
     }
     Serial.print(buffer);
-    verso = (int32_t)rotation * 14680064 / 17578125;
-    sprintf(buffer, "%4d rotation <-> %" PRIu32 " verso \n", rotation, verso);
+    verso = rotation * turnAngle1;
+    sprintf(buffer, "%" PRIu32 "= %4d * %" PRIu32 " \n", verso, rotation , turnAngle1);
     Serial.print(buffer);
   }
-  int32_t turnSpeed = 0, a, b;
-  a = ((verso >> 16 ) * 360) >> 16;
-  b = (((int32_t)turnAngle >> 16) * 360) >> 16;
-  printDisplay(0, 0, a );
-  printDisplay(4, 0, b );
-  while (a != b) {
+  dteta = (((int32_t)verso >> 16 ) * 360) >> 16;
+  teta = (((int32_t)turnAngle >> 16) * 360) >> 16;
+  printDisplay(0, 0, (int32_t)dteta );
+  printDisplay(4, 0, (int32_t)teta );
+  while (dteta != teta) {
     turnSensorUpdate();
-    turnSpeed = -verso / (turnAngle1 / 56) - turnRate / 20;
-    mot(turnSpeed, -turnSpeed);
-    a = ((verso >> 16 ) * 360) >> 16;
-    b = (((int32_t)turnAngle >> 16) * 360) >> 16;
-    printDisplay(0, 0, a );
-    printDisplay(4, 0, b );
+    turnSpeed = (int32_t)verso / (turnAngle1 / 56) - turnRate / 20;
+    mot(-turnSpeed, turnSpeed);
+    dteta = (((int32_t)verso >> 16 ) * 360) >> 16;
+    teta = (((int32_t)turnAngle >> 16) * 360) >> 16;
+    printDisplay(0, 0, (int32_t)dteta );
+    printDisplay(4, 0, (int32_t)teta );
   }
   mot((int32_t)0);
 }
@@ -159,28 +194,4 @@ char buttonMonitor()
   }
 
   return 0;
-}
-
-/*Detect Line*/
-void printReadingsToSerial()
-{
-  printDisplay(0, 0, (int32_t)lineSensorValues[0]);
-  //printDisplay(0,0,(int32_t)lineSensorValues[1]);
-  printDisplay(0, 0, (int32_t)lineSensorValues[2]);
-  //printDisplay(0,0,(int32_t)lineSensorValues[3]);
-  printDisplay(0, 1, (int32_t)lineSensorValues[4]);
-}
-void findWhite() {
-  for (int i = 0; i < 5; i++)
-    if (lineSensorValues[i] <= 1000) {
-      lcd.clear();
-      printDisplay(0, 0, "DIR");
-      printDisplay(0, 1, (int32_t)i);
-      printDisplay(4, 1, (int32_t)dirs[i]);
-
-      mot((int32_t)0);
-      while (buttonMonitor() != 'B');
-      dir(dirs[i]);
-      mot((int32_t)0);
-    }
 }
