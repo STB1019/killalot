@@ -1,2 +1,2 @@
 # killalot
-Scripting for Sumo Robotics Competition
+DEV version
