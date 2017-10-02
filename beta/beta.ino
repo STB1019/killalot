@@ -1,11 +1,15 @@
 //This stuff code make some foundamentals movement
-
+#include<inttypes.h>
 #include <Wire.h>
 #include <Zumo32U4.h>
 #include "TurnSensor.h"
 #define SPEED_MAX 400
 #define GYRO_NUM 14680064
 #define GYRO_DEN 17578125
+
+#define NUM_SENSORS 5
+uint16_t lineSensorValues[NUM_SENSORS];
+int dirs[] = { -45, 180, 45}; //inverto direzione
 
 Zumo32U4LCD lcd;
 Zumo32U4Buzzer buzzer;
@@ -18,23 +22,22 @@ LSM303 compass;
 L3G gyro;
 Zumo32U4Motors motors;
 Zumo32U4Encoders encoders;
-
 void dir(int);
 void mot(int32_t, int32_t);
 void mot(int32_t);
 void printDisplay(int, int, String);
 void printDisplay(String, String);
+void findWhite();
 void setup()
 {
-  printDisplay("Print A", "to Cal!");
+  printDisplay("Press A", "to Cal!");
   while (buttonMonitor() != 'A');
   turnSensorSetup();
   delay(500);
   turnSensorReset();
-  printDisplay("Print B", "to Fight!");
+  lineSensors.initFiveSensors();
+  printDisplay("Print B", "to Run!");
   while (buttonMonitor() != 'B');
-  wait();
-  lcd.clear();
 }
 
 void loop()
@@ -43,8 +46,9 @@ void loop()
   // the robot has turned, and turnRate, the estimation of how
   // fast it is turning.
 
-  dir(NULL);
-
+  dir(45);
+  //mot(50);
+  //findWhite();
 }
 void wait() {
   lcd.clear();
@@ -55,12 +59,26 @@ void wait() {
 }
 void dir(int rotation) {
   int32_t verso;
+  char buffer[80];
   if ( rotation == NULL) {
     turnSensorUpdate();
     verso = (int32_t)turnAngle;
   }
   else {
+    sprintf(buffer, "%4d rotation raw \n", rotation);
+    Serial.print(buffer);
+    if (rotation > 180) {
+      rotation = rotation - 360;
+      sprintf(buffer, "%4d rotation over 180 \n", rotation);
+    }
+    else if (rotation < -180) {
+      rotation = rotation + 360;
+      sprintf(buffer, "%4d rotation over -180 \n", rotation);
+    }
+    Serial.print(buffer);
     verso = (int32_t)rotation * 14680064 / 17578125;
+    sprintf(buffer, "%4d rotation <-> %" PRIu32 " verso \n", rotation, verso);
+    Serial.print(buffer);
   }
   int32_t turnSpeed = 0, a, b;
   a = ((verso >> 16 ) * 360) >> 16;
@@ -141,4 +159,28 @@ char buttonMonitor()
   }
 
   return 0;
+}
+
+/*Detect Line*/
+void printReadingsToSerial()
+{
+  printDisplay(0, 0, (int32_t)lineSensorValues[0]);
+  //printDisplay(0,0,(int32_t)lineSensorValues[1]);
+  printDisplay(0, 0, (int32_t)lineSensorValues[2]);
+  //printDisplay(0,0,(int32_t)lineSensorValues[3]);
+  printDisplay(0, 1, (int32_t)lineSensorValues[4]);
+}
+void findWhite() {
+  for (int i = 0; i < 5; i++)
+    if (lineSensorValues[i] <= 1000) {
+      lcd.clear();
+      printDisplay(0, 0, "DIR");
+      printDisplay(0, 1, (int32_t)i);
+      printDisplay(4, 1, (int32_t)dirs[i]);
+
+      mot((int32_t)0);
+      while (buttonMonitor() != 'B');
+      dir(dirs[i]);
+      mot((int32_t)0);
+    }
 }
