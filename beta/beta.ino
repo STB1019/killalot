@@ -191,7 +191,7 @@ void findWhite() {
       ledGreen(0);
       lcd.clear();
       printReadingsToSerial(3);
-      //dir(dirs[i]);
+      dir(dirs[i]);
       mot(0);
       delay(1000);
     }

@@ -127,7 +127,7 @@ void dir(int rotation) {
   printDisplay(0, 0, (int32_t)dteta );
   printDisplay(3, 0, (int32_t)teta );
   printDisplay(5, 0, (int32_t)(((int32_t)(story_rotation * turnAngle1) >> 16 ) * 360) >> 16 );
-  while (dteta != teta) {
+  while (dteta > teta) {
     turnSensorUpdate();
     turnSpeed = (int32_t)verso / (turnAngle1 / 56) - turnRate / 20;
     mot(-turnSpeed, turnSpeed);
