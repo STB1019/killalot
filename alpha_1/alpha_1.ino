@@ -101,23 +101,23 @@ void dir(int rotation) {
     ledGreen(0);
     sprintf(buffer, "-> verso= %" PRIu32 " rotation %4d story_rotation %4d \n", verso, rotation , story_rotation);
     Serial.print(buffer);
-    rotation = rotation+ story_rotation; // TODO
+    rotation = rotation + story_rotation; // TODO
     sprintf(buffer, "-> verso= %" PRIu32 " rotation %4d story_rotation %4d \n", verso, rotation , story_rotation);
     Serial.print(buffer);
     if (rotation == 0)
       rotation = -story_rotation;
     Serial.print(buffer);
     story_rotation = rotation;
-    if (rotation > 180) {
-      rotation = rotation - 360;
-      sprintf(buffer, "%4d rotation over 180 \n", rotation);
-      Serial.print(buffer);
-    }
-    else if (rotation < -180) {
-      rotation = rotation + 360;
-      sprintf(buffer, "%4d rotation over -180 \n", rotation);
-      Serial.print(buffer);
-    }
+    //    if (rotation > 180) {
+    //      rotation = rotation - 360;
+    //      sprintf(buffer, "%4d rotation over 180 \n", rotation);
+    //      Serial.print(buffer);
+    //    }
+    //    else if (rotation < -180) {
+    //      rotation = rotation + 360;
+    //      sprintf(buffer, "%4d rotation over -180 \n", rotation);
+    //      Serial.print(buffer);
+    //    }
     verso = rotation * turnAngle1;
     sprintf(buffer, "After multiply %" PRIu32 "= %4d * %" PRIu32 " \n", verso, rotation , turnAngle1);
     Serial.print(buffer);
@@ -159,24 +159,24 @@ void printDisplay(String line1, String line2) {
   printDisplay(0, 1, line2);
 }
 void printDisplay(int x, int y, float value) {
-  x = constrain(x, -8, 8);
-  y = constrain(y, -8, 8);
+  x = constrain(x, 0, 8);
+  y = constrain(y, 0, 1);
   lcd.gotoXY(x, y);
   lcd.print(F("    "));
   lcd.gotoXY(x, y);
   lcd.print(value);
 }
 void printDisplay(int x, int y, int32_t value) {
-  x = constrain(x, -8, 8);
-  y = constrain(y, -8, 8);
+  x = constrain(x, 0, 8);
+  y = constrain(y, 0, 1);
   lcd.gotoXY(x, y);
   lcd.print(F("    "));
   lcd.gotoXY(x, y);
   lcd.print(value);
 }
 void printDisplay(int x, int y, String s) {
-  x = constrain(x, -8, 8);
-  y = constrain(y, -8, 8);
+  x = constrain(x, 0, 8);
+  y = constrain(y, 0, 1);
   lcd.gotoXY(x, y);
   lcd.print(F("    "));
   lcd.gotoXY(x, y);

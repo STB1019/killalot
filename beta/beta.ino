@@ -46,9 +46,13 @@ void loop()
   // the robot has turned, and turnRate, the estimation of how
   // fast it is turning.
 
-  dir(45);
-  //mot(50);
-  //findWhite();
+  //dir(45);
+  printReadingsToSerial(0);
+  lineSensors.read(lineSensorValues, QTR_EMITTERS_ON);
+  printReadingsToSerial(1);
+  mot(50);
+  findWhite();
+  ledGreen(1);
 }
 void wait() {
   lcd.clear();
@@ -95,6 +99,9 @@ void dir(int rotation) {
     printDisplay(4, 0, b );
   }
   mot((int32_t)0);
+}
+void mot(int all) {
+  mot((int32_t)all);
 }
 void mot(int32_t all) {
   all = constrain(all, -SPEED_MAX, SPEED_MAX);
@@ -162,25 +169,31 @@ char buttonMonitor()
 }
 
 /*Detect Line*/
-void printReadingsToSerial()
+void printReadingsToSerial(int a)
 {
-  printDisplay(0, 0, (int32_t)lineSensorValues[0]);
-  //printDisplay(0,0,(int32_t)lineSensorValues[1]);
-  printDisplay(0, 0, (int32_t)lineSensorValues[2]);
-  //printDisplay(0,0,(int32_t)lineSensorValues[3]);
-  printDisplay(0, 1, (int32_t)lineSensorValues[4]);
+  char buffer[80];
+  sprintf(buffer, "%2d -> %4d %4d %4d %4d %4d\n",
+          a,
+          lineSensorValues[0],
+          lineSensorValues[1],
+          lineSensorValues[2],
+          lineSensorValues[3],
+          lineSensorValues[4]
+         );
+  Serial.print(buffer);
 }
-void findWhite() {
-  for (int i = 0; i < 5; i++)
-    if (lineSensorValues[i] <= 1000) {
-      lcd.clear();
-      printDisplay(0, 0, "DIR");
-      printDisplay(0, 1, (int32_t)i);
-      printDisplay(4, 1, (int32_t)dirs[i]);
 
-      mot((int32_t)0);
-      while (buttonMonitor() != 'B');
-      dir(dirs[i]);
-      mot((int32_t)0);
+void findWhite() {
+  for (int i = 0; i < 5; i++) {
+    printReadingsToSerial(2);
+    lineSensors.read(lineSensorValues, QTR_EMITTERS_ON);
+    if (lineSensorValues[i] <= 600) {
+      ledGreen(0);
+      lcd.clear();
+      printReadingsToSerial(3);
+      //dir(dirs[i]);
+      mot(0);
+      delay(1000);
     }
+  }
 }
