@@ -18,7 +18,7 @@ LSM303 compass;
 L3G gyro;
 Zumo32U4Motors motors;
 Zumo32U4Encoders encoders;
-int story_rotation=0;
+int story_rotation = 0;
 void dir(int);
 void mot(int32_t, int32_t);
 void mot(int32_t);
@@ -102,7 +102,7 @@ void dir(int rotation) {
     sprintf(buffer, "%4d rotation + %4d=%4d\n", rotation, teta, rotation + teta);
     Serial.print(buffer);
     rotation += story_rotation; // TODO
-    story_rotation=rotation;
+    story_rotation = rotation;
     if (rotation > 180) {
       rotation = rotation - 360;
       sprintf(buffer, "%4d rotation over 180 \n", rotation);
@@ -113,13 +113,17 @@ void dir(int rotation) {
     }
     Serial.print(buffer);
     verso = rotation * turnAngle1;
-    sprintf(buffer, "%" PRIu32 "= %4d * %" PRIu32 " \n", verso, rotation , turnAngle1);
+    sprintf(buffer, "Before check Zero %" PRIu32 "= %4d * %" PRIu32 " \n", verso, rotation , turnAngle1);
+    Serial.print(buffer);
+    verso = ((int)verso == 0) ? -story_rotation : verso;
+    sprintf(buffer, "After check Zero %" PRIu32 "= %4d * %" PRIu32 " \n", verso, rotation , turnAngle1);
     Serial.print(buffer);
   }
   dteta = (((int32_t)verso >> 16 ) * 360) >> 16;
   teta = (((int32_t)turnAngle >> 16) * 360) >> 16;
   printDisplay(0, 0, (int32_t)dteta );
-  printDisplay(4, 0, (int32_t)teta );
+  printDisplay(3, 0, (int32_t)teta );
+  printDisplay(5, 0, (int32_t)(((int32_t)(story_rotation * turnAngle1) >> 16 ) * 360) >> 16 );
   while (dteta != teta) {
     turnSensorUpdate();
     turnSpeed = (int32_t)verso / (turnAngle1 / 56) - turnRate / 20;
