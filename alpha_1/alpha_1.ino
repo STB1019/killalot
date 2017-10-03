@@ -99,24 +99,27 @@ void dir(int rotation) {
   }
   else {
     ledGreen(0);
-    sprintf(buffer, "%4d rotation + %4d=%4d\n", rotation, teta, rotation + teta);
+    sprintf(buffer, "-> verso= %" PRIu32 " rotation %4d story_rotation %4d \n", verso, rotation , story_rotation);
     Serial.print(buffer);
-    rotation += story_rotation; // TODO
+    rotation = rotation+ story_rotation; // TODO
+    sprintf(buffer, "-> verso= %" PRIu32 " rotation %4d story_rotation %4d \n", verso, rotation , story_rotation);
+    Serial.print(buffer);
+    if (rotation == 0)
+      rotation = -story_rotation;
+    Serial.print(buffer);
     story_rotation = rotation;
     if (rotation > 180) {
       rotation = rotation - 360;
       sprintf(buffer, "%4d rotation over 180 \n", rotation);
+      Serial.print(buffer);
     }
     else if (rotation < -180) {
       rotation = rotation + 360;
       sprintf(buffer, "%4d rotation over -180 \n", rotation);
+      Serial.print(buffer);
     }
-    Serial.print(buffer);
     verso = rotation * turnAngle1;
-    sprintf(buffer, "Before check Zero %" PRIu32 "= %4d * %" PRIu32 " \n", verso, rotation , turnAngle1);
-    Serial.print(buffer);
-    verso = ((int)verso == 0) ? -story_rotation : verso;
-    sprintf(buffer, "After check Zero %" PRIu32 "= %4d * %" PRIu32 " \n", verso, rotation , turnAngle1);
+    sprintf(buffer, "After multiply %" PRIu32 "= %4d * %" PRIu32 " \n", verso, rotation , turnAngle1);
     Serial.print(buffer);
   }
   dteta = (((int32_t)verso >> 16 ) * 360) >> 16;
