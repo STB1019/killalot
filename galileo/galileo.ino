@@ -5,8 +5,10 @@
 //#define FLIP_LEFT
 //#define FLIP_RIGHT
 #define SPEED_MAX 400
+#define SPEED_MED 250
 #define SIZE_LINE_SENSOR 3
-#define TRESHOLD_LINE_SENSOR 700
+#define TRESHOLD_LINE_SENSOR 900
+#define TRESHOLD_LINE_SENSOR_CENTER 500
 #define STALEMATETIME 4000
 
 Zumo32U4LCD lcd;
@@ -29,9 +31,9 @@ enum State {
 State state = state_Scan;
 enum Direction
 {
-  dir_Left,
-  dir_Right,
-  dir_Forward,
+  dir_Right = 0, //Ordine fondamentale per il funzionamento del seek e del white
+  dir_Forward = 1,
+  dir_Left = 2,
   dir_Back,
   dir_Stop,
 };
@@ -54,13 +56,13 @@ bool isProximity();
 void StateRam();
 
 
-void setup(){
-  #ifdef FLIP_LEFT
+void setup() {
+#ifdef FLIP_LEFT
   motors.flipLeftMotor(true);
-  #endif
-  #ifdef FLIP_RIGHT
-  motors.flipRightMotor(true); 
-  #endif
+#endif
+#ifdef FLIP_RIGHT
+  motors.flipRightMotor(true);
+#endif
   Serial.begin(9600);
   printDisplay("Press A", "to Cal!");
   while (buttonMonitor() != 'A');
@@ -69,12 +71,12 @@ void setup(){
   turnSensorReset();
   lineSensors.initThreeSensors();
   proxSensors.initThreeSensors();
-  mot(dir_Stop, 0);
   wait();
   dir(135);
+  state = state_Scan;
 }
 
-void loop(){
+void loop() {
   changeState();
   switch (state) {
     case state_White:
@@ -82,6 +84,7 @@ void loop(){
       break;
     case state_Scan:
     default:
+      mot(0, dir_Stop);
       StateScan();
       break;
     case state_Seek:
@@ -91,10 +94,9 @@ void loop(){
       StateRam();
       break;
   }
-  delay(100);
 }
 
-uint16_t timeInThisState(){
+uint16_t timeInThisState() {
   return (uint16_t)(millis() - stateStartTime);
 }
 /*Legge sensori: in base a quel che trova applica uno stato*/
@@ -117,16 +119,15 @@ void StateScan() {
   bool sensorSignal = true;
   dir(60);
   story_rotation += 60;
-  printDisplay(0, 0, (float)story_rotation);
   if (story_rotation >= 450)
     story_rotation = -2;
   if (isWhite() || isProximity())
     changeState();
   while ((story_rotation < 0) && sensorSignal) {
-    mot(250, dir_Forward);
-    delay(100);
+    mot(50, dir_Forward);
+    delay(20);
     story_rotation += 1;
-    if ((!isWhite()) || (!isProximity()))
+    if ((isWhite()) || (isProximity()))
       sensorSignal = false;
   }
   if (!sensorSignal)
@@ -136,12 +137,17 @@ void StateScan() {
 void StateSeek() {
   proxSensors.read();
   uint8_t sum = proxSensors.countsFrontWithRightLeds() + proxSensors.countsFrontWithLeftLeds();
-  if (proxSensors.countsRightWithRightLeds() >= 5)
-    dir(-60);
-  else if (proxSensors.countsLeftWithLeftLeds() >= 5)
-    dir(60);
+  if (proxSensors.countsRightWithRightLeds() >= 5) {
+    dir(-45);
+    modState(state_Ram);
+  }
+  else if (proxSensors.countsLeftWithLeftLeds() >= 5) {
+    dir(45);
+    modState(state_Ram);
+  }
   else if (sum >= 4 || timeInThisState() > STALEMATETIME)
-    StateRam();
+    mot(SPEED_MAX, dir_Forward);
+    modState(state_Ram);
 }
 bool isProximity() {
   proxSensors.read();
@@ -157,49 +163,65 @@ bool isProximity() {
   }
   return false;
 }
-/*Attuatore per lo stato White*/
+/*Attuatstateore per lo stato White*/
 void StateWhite() {
-  //TODO
-  ledGreen(0);
-  delay(100);
-  ledGreen(1);
-  delay(100);
-  ledGreen(0);
-  delay(100);
-  ledGreen(1);
+  int num_sensor=-1;
+    if (lineSensorValues[0] < TRESHOLD_LINE_SENSOR) {
+      mot(SPEED_MED, dir_Right);
+      num_sensor=0;
+    }
+    else if (lineSensorValues[2] < TRESHOLD_LINE_SENSOR) {
+      mot(SPEED_MED, dir_Left);
+      num_sensor=2;
+    }
+    else if (lineSensorValues[1] < TRESHOLD_LINE_SENSOR_CENTER) {
+      mot(SPEED_MED, dir_Back);
+     dir(dir_Back);
+    }
   modState(state_Scan);
 }
 bool isWhite() {
-  return false;
   lineSensors.read(lineSensorValues);
   for (int i = 0; i < SIZE_LINE_SENSOR; i++)
     if (lineSensorValues[i] < TRESHOLD_LINE_SENSOR) {
       modState(state_White);
       return true;
     }
+     modState(state_Scan);
   return false;
 }
 /*Attuatore per lo stato Ram*/
 void StateRam() {
-  //TODO
-  ledRed(0);
-  delay(100);
-  ledRed(1);
-  delay(100);
-  ledRed(0);
-  delay(100);
-  ledRed(1);
-  mot(SPEED_MAX,dir_Forward);
-  modState(state_Scan);
+  while (!isWhite() && isProximity())
+    mot(SPEED_MAX, dir_Forward);
+  mot(0, dir_Forward);
 }
 /**
     Attesa 5 secondi
 */
 void wait() {
   lcd.clear();
-  for (float i = 5; i > 0; i = i - 0.1) {
+  for (float i = 4.5; i > 0; i = i - 0.1) {
     printDisplay(0, 0, i);
     delay(100);
+  }
+}
+/**
+   Easy tool to turn right,left,back
+*/
+void dir(Direction opt) {
+  switch (opt) {
+    case dir_Left:
+      dir(135);
+      break;
+    case dir_Right:
+      dir(-135);
+    case dir_Back:
+      dir(210);
+      break;
+    default:
+      dir(0);
+      break;
   }
 }
 /*
@@ -285,9 +307,6 @@ char buttonMonitor() {
 }
 void modState(State s) {
   state = s;
-  printDisplay("State ", state);
-  delay(250);
-  //while (buttonMonitor() != 'A');
 
 }
 
