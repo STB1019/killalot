@@ -32,53 +32,21 @@ void setup()
   turnSensorSetup();
   delay(500);
   turnSensorReset();
+}
+
+void loop()
+{
+
   printDisplay("Print B", "to +135!");
   while (buttonMonitor() != 'B');
   wait();
   lcd.clear();
   dir(135);
-  while (buttonMonitor() != 'B');
-  ledGreen(1);
   printDisplay("Print B", "to -135!");
   while (buttonMonitor() != 'B');
   wait();
   lcd.clear();
   dir(-135);
-  while (buttonMonitor() != 'B');
-  ledGreen(1);
-  printDisplay("Print B", "to Fight!");
-  while (buttonMonitor() != 'B');
-  wait();
-  lcd.clear();
-  dir(90);
-  while (buttonMonitor() != 'B');
-  ledGreen(1);
-  printDisplay("Print B", "to Fight!");
-  while (buttonMonitor() != 'B');
-  wait();
-  lcd.clear();
-  dir(90);
-  while (buttonMonitor() != 'B');
-  ledGreen(1);
-  printDisplay("Print B", "to Fight!");
-  while (buttonMonitor() != 'B');
-  wait();
-  lcd.clear();
-  dir(-135);
-  while (buttonMonitor() != 'B');
-  ledGreen(1);
-  printDisplay("Print B", "to Fight!");
-  while (buttonMonitor() != 'B');
-}
-
-void loop()
-{
-  // Read the gyro to update turnAngle, the estimation of how far
-  // the robot has turned, and turnRate, the estimation of how
-  // fast it is turning.
-
-  dir(NULL);
-
 }
 void wait() {
   lcd.clear();
@@ -88,70 +56,30 @@ void wait() {
   }
 }
 void dir(int rotation) {
-  int64_t verso;
-  int teta = (((int32_t)turnAngle >> 16) * 360 >> 16);
-  int32_t turnSpeed = 0;
-  int dteta = 0;
-  char buffer[80];
+  char direzione = 'L';
   if ( rotation == NULL) {
     turnSensorUpdate();
-    verso = (int64_t)360;
+    rotation = -(((int32_t)turnAngle >> 16 ) * 360) >> 16;
   }
-  else {
-    ledGreen(0);
-    sprintf(buffer, "-> verso= %" PRIu32 " rotation %4d story_rotation %4d \n", verso, rotation , story_rotation);
-    Serial.print(buffer);
-    rotation = rotation + story_rotation; // TODO
-    sprintf(buffer, "-> verso= %" PRIu32 " rotation %4d story_rotation %4d \n", verso, rotation , story_rotation);
-    Serial.print(buffer);
-    if (rotation == 0)
-      rotation = -story_rotation;
-    Serial.print(buffer);
-    story_rotation = rotation;
-    //    if (rotation > 180) {
-    //      rotation = rotation - 360;
-    //      sprintf(buffer, "%4d rotation over 180 \n", rotation);
-    //      Serial.print(buffer);
-    //    }
-    //    else if (rotation < -180) {
-    //      rotation = rotation + 360;
-    //      sprintf(buffer, "%4d rotation over -180 \n", rotation);
-    //      Serial.print(buffer);
-    //    }
-    verso = rotation * turnAngle1;
-    sprintf(buffer, "After multiply %" PRIu32 "= %4d * %" PRIu32 " \n", verso, rotation , turnAngle1);
-    Serial.print(buffer);
+  if (rotation > 0) {
+    direzione = 'L';
   }
-  dteta = (((int32_t)verso >> 16 ) * 360) >> 16;
-  teta = (((int32_t)turnAngle >> 16) * 360) >> 16;
-  printDisplay(0, 0, (int32_t)dteta );
-  printDisplay(3, 0, (int32_t)teta );
-  printDisplay(5, 0, (int32_t)(((int32_t)(story_rotation * turnAngle1) >> 16 ) * 360) >> 16 );
-  while (dteta > teta) {
-    turnSensorUpdate();
-    turnSpeed = (int32_t)verso / (turnAngle1 / 56) - turnRate / 20;
-    mot(-turnSpeed, turnSpeed);
-    dteta = (((int32_t)verso >> 16 ) * 360) >> 16;
-    teta = (((int32_t)turnAngle >> 16) * 360) >> 16;
-    printDisplay(0, 0, (int32_t)dteta );
-    printDisplay(4, 0, (int32_t)teta );
+  else  if (rotation < 0) {
+    direzione = 'R';
   }
-  mot((int32_t)0);
+  rotation = abs(rotation);
+  rotation = ((rotation / 45) * 120);
+  mot(SPEED_MAX, direzione);
+  if (rotation > 10)
+    delay(rotation);
+  mot(0, direzione);
 }
-void mot(int32_t all) {
-  all = constrain(all, -SPEED_MAX, SPEED_MAX);
-  motors.setSpeeds(all, all);
-  printDisplay(1, 1, all);
-  printDisplay(4, 1, "|");
-  printDisplay(5, 1, all);
-}
-void mot(int32_t left, int32_t right) {
-  left = constrain(left, -SPEED_MAX, SPEED_MAX);
-  right = constrain(right, -SPEED_MAX, SPEED_MAX);
-  motors.setSpeeds(left, right);
-  printDisplay(0, 1, left);
-  printDisplay(4, 1, "|");
-  printDisplay(5, 1, right);
+void mot(int hp, char direzione) {
+  hp = constrain(hp, -SPEED_MAX, SPEED_MAX);
+  if (direzione == 'L')
+    motors.setSpeeds(-hp, hp);
+  else
+    motors.setSpeeds(hp, -hp);
 }
 void printDisplay(String line1, String line2) {
   lcd.clear();
@@ -159,14 +87,6 @@ void printDisplay(String line1, String line2) {
   printDisplay(0, 1, line2);
 }
 void printDisplay(int x, int y, float value) {
-  x = constrain(x, 0, 8);
-  y = constrain(y, 0, 1);
-  lcd.gotoXY(x, y);
-  lcd.print(F("    "));
-  lcd.gotoXY(x, y);
-  lcd.print(value);
-}
-void printDisplay(int x, int y, int32_t value) {
   x = constrain(x, 0, 8);
   y = constrain(y, 0, 1);
   lcd.gotoXY(x, y);
@@ -186,19 +106,10 @@ void printDisplay(int x, int y, String s) {
 char buttonMonitor()
 {
   if (buttonA.getSingleDebouncedPress())
-  {
     return 'A';
-  }
-
   if (buttonB.getSingleDebouncedPress())
-  {
     return 'B';
-  }
-
   if (buttonC.getSingleDebouncedPress())
-  {
     return 'C';
-  }
-
   return 0;
 }

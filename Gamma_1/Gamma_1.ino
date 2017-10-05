@@ -42,10 +42,16 @@ const uint16_t reverseSpeed = 50;
 const uint16_t turnSpeed = 50;
 // Velocità move
 const uint16_t forwardSpeed = 100;
-// Velocità virata (These two variables specify the speeds to apply to the motors when veering left or veering right.  While the robot is driving forward, it uses its proximity sensors to scan for objects ahead of it and tries to veer towards them.)
+/* Velocità virata (These two variables specify the speeds to apply to the motors when veering
+  left or veering right.  While the robot is driving forward, it uses its proximity sensors to
+  scan for objects ahead of it and tries to veer towards them.)
+*/
 const uint16_t veerSpeedLow = -100;
 const uint16_t veerSpeedHigh = 100;
-// Velocità ram (The speed that the robot drives when it detects an opponent in front of it, either with the proximity sensors or by noticing that it is caught in a stalemate (driving forward for several seconds without reaching a border).  400 is full speed.)
+/* Velocità ram (The speed that the robot drives when it detects an opponent in front of it,
+  either with the proximity sensors or by noticing that it is caught in a stalemate
+  (driving forward for several seconds without reaching a border).  400 is full speed.)
+*/
 const uint16_t rammingSpeed = 100;
 
 //// Tempo
@@ -57,7 +63,10 @@ const uint16_t scanTimeMin = 200;
 const uint16_t scanTimeMax = 2100;
 // Tempo attesa iniziale
 const uint16_t waitTime = 2000;
-// If the robot has been driving forward for this amount of time, in milliseconds, without reaching a border, the robot decides that it must be pushing on another robot and this is a stalemate, so it increases its motor speed.)
+/* If the robot has been driving forward for this amount of time, in milliseconds,
+  without reaching a border, the robot decides that it must be pushing on another
+  robot and this is a stalemate, so it increases its motor speed.)
+*/
 const uint16_t stalemateTime = 4000;
 // The time, in milliseconds, that we entered the current top-level state.
 uint16_t stateStartTime;
@@ -82,6 +91,7 @@ enum Direction
 {
   DirectionLeft,
   DirectionRight,
+  DirectionForward,
 };
 
 // scanDir is the direction the robot should turn the next time
@@ -120,7 +130,7 @@ void loop()
   {
     // Stato iniziale della macchina, dove vengono fatte tutte le calibrazioni e poi si aspetta 5 secondi
     motors.setSpeeds(0, 0);
-    
+
     if (justChangedState)
     {
       justChangedState = false;
@@ -133,7 +143,7 @@ void loop()
       lcd.gotoXY(0, 1);
       lcd.print(readBatteryMillivolts());
     }
-    
+
     if (buttonPress)
     {
       // The user pressed button A, so go to the seek state.
@@ -167,82 +177,84 @@ void loop()
     }
   }
 
-  else if (state == StateSeek) //&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
-  {
-    // In this state we drive forward while also looking for the opponent using the proximity sensors and checking for the white border.
+  else if (state == StateSeek)
+    /*
+        In this state we drive forward while also looking for the opponent using
+        the proximity sensors and checking for the white border.
+    */
     if (justChangedState)
     {
       justChangedState = false;
       lcd.print(F("seek"));
     }
 
-    // Check for borders.
-    lineSensors.read(lineSensorValues);
-    if (lineSensorValues[0] < lineSensorThreshold)
-    {
-      scanDir = DirectionRight;
-      changeState(StateBacking);
-    }
-    if (lineSensorValues[2] < lineSensorThreshold)
-    {
-      scanDir = DirectionLeft;
-      changeState(StateBacking);
-    }
-
-    // LEGGE I SENSORI
-    proxSensors.read();
-    uint8_t sum = proxSensors.countsFrontWithRightLeds() + proxSensors.countsFrontWithLeftLeds();
-    int8_t diff = proxSensors.countsFrontWithRightLeds() - proxSensors.countsFrontWithLeftLeds();
-
-    // DEFINISCO LA DIREZIONE
-    // We see something with the front sensor but it is not a strong reading.
-    if (proxSensors.countsRightWithRightLeds() >= 5)// || diff >= 1)
-    {
-      // The right-side reading is stronger, so veer to the right.
-      //dir(90);
-      motors.setSpeeds(veerSpeedHigh, veerSpeedLow);
-//      int destra = proxSensors.countsRightWithRightLeds();
-//      Serial.print(destra);
-      sprintf(buffer, "Gira a destra \n");
-      Serial.print(buffer);
-    }
-    else if (proxSensors.countsLeftWithLeftLeds() >= 5)// || diff <= -1)
-    {
-      // The left-side reading is stronger, so veer to the left.
-      //dir(-90);
-//      int sinistra = proxSensors.countsRightWithLeftLeds();
-//      Serial.print(sinistra);
-      motors.setSpeeds(veerSpeedLow, veerSpeedHigh);
-      sprintf(buffer, "Gira a sinistra \n");
-      Serial.print(buffer);
-    }
-    else if (sum >= 4 || timeInThisState() > stalemateTime)
-    {
-      // The front sensor is getting a strong signal, or we have been driving forward for a while now without seeing the border.  Either way, there is probably a robot in front of us and we should switch to ramming speed to try to push the robot out of the ring.
-      motors.setSpeeds(rammingSpeed, rammingSpeed);
-      sprintf(buffer,"Oggetto frontale, vai dritto \n");
-      Serial.print(buffer);
-      // Turn on the red LED when ramming.
-      ledRed(1);
-//      // Both readings are equal, so just drive forward.
-//      motors.setSpeeds(forwardSpeed, forwardSpeed);
-//      sprintf(buffer,"Destra = sinistra, vai dritto \n");
-//      Serial.print(buffer);
-    }
-
-//    if (sum >= 4 || timeInThisState() > stalemateTime) ///////////////////////////////////////////////////////////////////////////////////// Cambio la soglia (prima era 4)
-//    {
-//      // The front sensor is getting a strong signal, or we have been driving forward for a while now without seeing the border.  Either way, there is probably a robot in front of us and we should switch to ramming speed to try to push the robot out of the ring.
-//      motors.setSpeeds(rammingSpeed, rammingSpeed);
-//      sprintf(buffer,"Oggetto frontale, vai dritto \n");
-//      Serial.print(buffer);
-//      // Turn on the red LED when ramming.
-//      ledRed(1);
-//    }
-
-    changeState(StateSeek);
-    
+  // Check for borders.
+  lineSensors.read(lineSensorValues);
+  if (lineSensorValues[0] < lineSensorThreshold)
+  {
+    scanDir = DirectionRight;
+    changeState(StateBacking);
   }
+  if (lineSensorValues[2] < lineSensorThreshold)
+  {
+    scanDir = DirectionLeft;
+    changeState(StateBacking);
+  }
+
+  // LEGGE I SENSORI
+  proxSensors.read();
+  uint8_t sum = proxSensors.countsFrontWithRightLeds() + proxSensors.countsFrontWithLeftLeds();
+  int8_t diff = proxSensors.countsFrontWithRightLeds() - proxSensors.countsFrontWithLeftLeds();
+
+  // DEFINISCO LA DIREZIONE
+  // We see something with the front sensor but it is not a strong reading.
+  if (proxSensors.countsRightWithRightLeds() >= 5)// || diff >= 1)
+  {
+    // The right-side reading is stronger, so veer to the right.
+    //dir(90);
+    motors.setSpeeds(veerSpeedHigh, veerSpeedLow);
+    //      int destra = proxSensors.countsRightWithRightLeds();
+    //      Serial.print(destra);
+    sprintf(buffer, "Gira a destra \n");
+    Serial.print(buffer);
+  }
+  else if (proxSensors.countsLeftWithLeftLeds() >= 5)// || diff <= -1)
+  {
+    // The left-side reading is stronger, so veer to the left.
+    //dir(-90);
+    //      int sinistra = proxSensors.countsRightWithLeftLeds();
+    //      Serial.print(sinistra);
+    motors.setSpeeds(veerSpeedLow, veerSpeedHigh);
+    sprintf(buffer, "Gira a sinistra \n");
+    Serial.print(buffer);
+  }
+  else if (sum >= 4 || timeInThisState() > stalemateTime)
+  {
+    // The front sensor is getting a strong signal, or we have been driving forward for a while now without seeing the border.  Either way, there is probably a robot in front of us and we should switch to ramming speed to try to push the robot out of the ring.
+    motors.setSpeeds(rammingSpeed, rammingSpeed);
+    sprintf(buffer, "Oggetto frontale, vai dritto \n");
+    Serial.print(buffer);
+    // Turn on the red LED when ramming.
+    ledRed(1);
+    //      // Both readings are equal, so just drive forward.
+    //      motors.setSpeeds(forwardSpeed, forwardSpeed);
+    //      sprintf(buffer,"Destra = sinistra, vai dritto \n");
+    //      Serial.print(buffer);
+  }
+
+  //    if (sum >= 4 || timeInThisState() > stalemateTime) ///////////////////////////////////////////////////////////////////////////////////// Cambio la soglia (prima era 4)
+  //    {
+  //      // The front sensor is getting a strong signal, or we have been driving forward for a while now without seeing the border.  Either way, there is probably a robot in front of us and we should switch to ramming speed to try to push the robot out of the ring.
+  //      motors.setSpeeds(rammingSpeed, rammingSpeed);
+  //      sprintf(buffer,"Oggetto frontale, vai dritto \n");
+  //      Serial.print(buffer);
+  //      // Turn on the red LED when ramming.
+  //      ledRed(1);
+  //    }
+
+  changeState(StateSeek);
+
+}
 
 }// FINE LOOP
 
@@ -351,37 +363,5 @@ void mot(int32_t left, int32_t right) {
   left = constrain(left, -SPEED_MAX, SPEED_MAX);
   right = constrain(right, -SPEED_MAX, SPEED_MAX);
   motors.setSpeeds(left, right);
-  //printDisplay(0, 1, left);
-  //printDisplay(4, 1, "|");
-  //printDisplay(5, 1, right);
 }
 
-void printDisplay(String line1, String line2) {
-  lcd.clear();
-  //printDisplay(0, 0, line1);
-  //printDisplay(0, 1, line2);
-}
-void printDisplay(int x, int y, float value) {
-  x = constrain(x, 0, 8);
-  y = constrain(y, 0, 1);
-  lcd.gotoXY(x, y);
-  lcd.print(F("    "));
-  lcd.gotoXY(x, y);
-  lcd.print(value);
-}
-void printDisplay(int x, int y, int32_t value) {
-  x = constrain(x, 0, 8);
-  y = constrain(y, 0, 1);
-  lcd.gotoXY(x, y);
-  lcd.print(F("    "));
-  lcd.gotoXY(x, y);
-  lcd.print(value);
-}
-void printDisplay(int x, int y, String s) {
-  x = constrain(x, 0, 8);
-  y = constrain(y, 0, 1);
-  lcd.gotoXY(x, y);
-  lcd.print(F("    "));
-  lcd.gotoXY(x, y);
-  lcd.print(s);
-}
