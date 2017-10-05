@@ -2,9 +2,11 @@
 #include <Wire.h>
 #include <Zumo32U4.h>
 #include "TurnSensor.h"
+//#define FLIP_LEFT
+//#define FLIP_RIGHT
 #define SPEED_MAX 400
-#define GYRO_NUM 14680064
-#define GYRO_DEN 17578125
+#define SIZE_LINE_SENSOR 3
+#define TRESHOLD_LINE_SENSOR 700
 #define STALEMATETIME 4000
 
 Zumo32U4LCD lcd;
@@ -17,6 +19,7 @@ L3G gyro;
 Zumo32U4Motors motors;
 int story_rotation = 0;
 uint16_t stateStartTime;
+unsigned int lineSensorValues[SIZE_LINE_SENSOR];
 enum State {
   state_Scan,
   state_Seek,
@@ -51,8 +54,13 @@ bool isProximity();
 void StateRam();
 
 
-void setup()
-{
+void setup(){
+  #ifdef FLIP_LEFT
+  motors.flipLeftMotor(true);
+  #endif
+  #ifdef FLIP_RIGHT
+  motors.flipRightMotor(true); 
+  #endif
   Serial.begin(9600);
   printDisplay("Press A", "to Cal!");
   while (buttonMonitor() != 'A');
@@ -66,31 +74,27 @@ void setup()
   dir(135);
 }
 
-void loop()
-{
-  StateScan();
-  delay(100);
-  //  changeState();
-  //  switch (state) {
-  //    case state_White:
-  //      StateWhite();
-  //      break;
-  //    case state_Scan:
-  //    default:
-  //      StateScan();
-  //      break;
-  //    case state_Seek:
-  //      StateSeek();
-  //      break;
-  //    case state_Ram:
-  //      StateRam();
-  //      break;
-  //  }
+void loop(){
+  changeState();
+  switch (state) {
+    case state_White:
+      StateWhite();
+      break;
+    case state_Scan:
+    default:
+      StateScan();
+      break;
+    case state_Seek:
+      StateSeek();
+      break;
+    case state_Ram:
+      StateRam();
+      break;
+  }
   delay(100);
 }
 
-uint16_t timeInThisState()
-{
+uint16_t timeInThisState(){
   return (uint16_t)(millis() - stateStartTime);
 }
 /*Legge sensori: in base a quel che trova applica uno stato*/
@@ -130,42 +134,67 @@ void StateScan() {
 }
 /*Attuatore per lo stato Seek*/
 void StateSeek() {
+  proxSensors.read();
+  uint8_t sum = proxSensors.countsFrontWithRightLeds() + proxSensors.countsFrontWithLeftLeds();
+  if (proxSensors.countsRightWithRightLeds() >= 5)
+    dir(-60);
+  else if (proxSensors.countsLeftWithLeftLeds() >= 5)
+    dir(60);
+  else if (sum >= 4 || timeInThisState() > STALEMATETIME)
+    StateRam();
 }
 bool isProximity() {
   proxSensors.read();
   uint8_t sum = proxSensors.countsFrontWithRightLeds() + proxSensors.countsFrontWithLeftLeds();
   int8_t diff = proxSensors.countsFrontWithRightLeds() - proxSensors.countsFrontWithLeftLeds();
-  printDisplay("Test", sum);
-  delay(100);
-  ledRed(0);
-  delay(100);
-  ledRed(1);
-  delay(100);
-  ledRed(0);
-  delay(100);
-  ledRed(1);
-  if (proxSensors.countsRightWithRightLeds() >= 5 || proxSensors.countsLeftWithLeftLeds() >= 5 || sum >= 4 || timeInThisState() > STALEMATETIME)
+  if (
+    proxSensors.countsRightWithRightLeds() >= 5 ||
+    proxSensors.countsLeftWithLeftLeds() >= 5 ||
+    sum >= 4 ||
+    timeInThisState() > STALEMATETIME) {
+    modState(state_Seek);
     return true;
+  }
   return false;
 }
 /*Attuatore per lo stato White*/
 void StateWhite() {
-
+  //TODO
+  ledGreen(0);
+  delay(100);
+  ledGreen(1);
+  delay(100);
+  ledGreen(0);
+  delay(100);
+  ledGreen(1);
+  modState(state_Scan);
 }
 bool isWhite() {
-  delay(100);
-  ledYellow(0);
-  delay(100);
-  ledYellow(1);
-  delay(100);
-  ledYellow(0);
-  delay(100);
-  ledYellow(1);
+  return false;
+  lineSensors.read(lineSensorValues);
+  for (int i = 0; i < SIZE_LINE_SENSOR; i++)
+    if (lineSensorValues[i] < TRESHOLD_LINE_SENSOR) {
+      modState(state_White);
+      return true;
+    }
   return false;
 }
 /*Attuatore per lo stato Ram*/
 void StateRam() {
+  //TODO
+  ledRed(0);
+  delay(100);
+  ledRed(1);
+  delay(100);
+  ledRed(0);
+  delay(100);
+  ledRed(1);
+  mot(SPEED_MAX,dir_Forward);
+  modState(state_Scan);
 }
+/**
+    Attesa 5 secondi
+*/
 void wait() {
   lcd.clear();
   for (float i = 5; i > 0; i = i - 0.1) {
@@ -173,6 +202,9 @@ void wait() {
     delay(100);
   }
 }
+/*
+   Set relative rotation in degrees [-360:1:360], not absolute!
+*/
 void dir(int rotation) {
   Direction dir = dir_Left;
   if ( rotation == NULL) {
@@ -190,6 +222,10 @@ void dir(int rotation) {
     delay(rotation);
   mot(0, dir);
 }
+/**
+   hp= Horse Power
+   dir= direction
+*/
 void mot(int hp, Direction dir) {
   hp = constrain(hp, -SPEED_MAX, SPEED_MAX);
   switch (dir) {
@@ -238,8 +274,7 @@ void printDisplay(int x, int y, String s) {
   lcd.print(s);
 }
 
-char buttonMonitor()
-{
+char buttonMonitor() {
   if (buttonA.getSingleDebouncedPress())
     return 'A';
   if (buttonB.getSingleDebouncedPress())
@@ -247,6 +282,13 @@ char buttonMonitor()
   if (buttonC.getSingleDebouncedPress())
     return 'C';
   return 0;
+}
+void modState(State s) {
+  state = s;
+  printDisplay("State ", state);
+  delay(250);
+  //while (buttonMonitor() != 'A');
+
 }
 
 
