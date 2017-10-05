@@ -64,7 +64,7 @@ void setup() {
   motors.flipRightMotor(true);
 #endif
   Serial.begin(9600);
-  printDisplay("Press A", "to Cal!");
+  printDisplay("Press A", "to Fight!");
   while (buttonMonitor() != 'A');
   turnSensorSetup();
   delay(500);
